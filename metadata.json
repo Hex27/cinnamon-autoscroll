@@ -1,0 +1,9 @@
+{
+  "uuid": "autoscroll@hex27",
+  "name": "Autoscroll",
+  "description": "Implements Windows-style middle-click autoscroll",
+  "version": "0.0.0",
+  "cinnamon-version": [
+    "6.6"
+  ]
+}

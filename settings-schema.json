@@ -1,0 +1,49 @@
+{
+    "layout":{
+        "type":"layout",
+        "pages":["settings-page"],
+        "settings-page": {
+            "type":"page",
+            "title":"General",
+            "sections":["settings-section"]
+        },
+        "settings-section":{
+            "type":"section",
+            "title":"section",
+            "keys":["scrollPeriod","deadzone","iconSize","disabledList"]
+        }
+    },
+    "scrollPeriod":{
+        "type":"spinbutton",
+        "default":50,
+        "min":1,
+        "max":500,
+        "step":1,
+        "units":"px",
+        "description":"Distance from scroll cursor per speed increment." 
+    },
+    "deadzone":{
+        "type":"spinbutton",
+        "default":20,
+        "min":0,
+        "max":500,
+        "step":1,
+        "units":"px",
+        "description":"Distance from scroll cursor with no speed increment." 
+    },
+    "iconSize":{
+        "type":"spinbutton",
+        "default":64,
+        "min":1,
+        "max":500,
+        "step":1,
+        "units":"px",
+        "description":"Base size of scroll cursor icon" 
+    },
+    "disabledList":{
+        "type":"list",
+        "columns":[{"id":"app","title":"Disabled App Names","type":"string"}],
+        "default":[],
+        "description":"List of programs where the extension is disabled." 
+    }
+}

@@ -1,16 +1,11 @@
 const GLib = imports.gi.GLib;
-const Gdk = imports.gi.Gdk;
 const Gio = imports.gi.Gio;
-const Gtk = imports.gi.Gtk;
 const St = imports.gi.St;
 const Main = imports.ui.main;
 const Cinnamon = imports.gi.Cinnamon;
-const GObject = imports.gi.GObject;
 const Atspi = imports.gi.Atspi;
-const Clutter = imports.gi.Clutter;
+const Settings = imports.ui.settings;
 
-let stage_handler_id;
-let stage = new Clutter.Stage();
 let listener;
 
 let scrollInitWin;
@@ -25,18 +20,10 @@ const settingsObj = {
 	scrollPeriod: 50,
 	deadzone: 20,
     iconSize: 64,
-    disabledList: ["Godot","Krita"]
+    disabledList: []
 };
 
-function debug_beep(){
-	GLib.spawn_command_line_async('ffplay -f lavfi -i "sine=frequency=1000:duration=0.2" -autoexit -nodisp')
-}
-
-/**
- * called when extension is loaded
- */
 function init(extensionMeta) {
-  //extensionMeta holds your metadata.json info
     scrollIcon = Gio.icon_new_for_string(`${extensionMeta.path}/scroll_cursor.svg`);
 }
 
@@ -44,9 +31,12 @@ function init(extensionMeta) {
  * called when extension is loaded
  */
 function enable() {
+    let settings = new Settings.ExtensionSettings(settingsObj, "autoscroll@hex27")
+    settings.bind("scrollPeriod","scrollPeriod",(val)=>settingsObj.scrollPeriod=val)
+    settings.bind("deadzone","deadzone",(val)=>settingsObj.deadzone=val)
+    settings.bind("iconSize","iconSize",(val)=>settingsObj.iconSize=val)
+    settings.bind("disabledList","disabledList",(val)=>settingsObj.disabledList=val)
 
-	//debug_beep()
-	global.log("Enabling extension")
 	listener = Atspi.EventListener.new((event)=>{
 		switch(event.type){
 			case "mouse:button:2p":
@@ -63,11 +53,6 @@ function enable() {
 	listener.register("mouse:button:2r");
 }	
 
-function dumpObj(o)
-{
-    global.log(o)
-    global.log(Object.keys(o))
-}
 function handle_scrollMode() {
 	if(!scrollMode) return GLib.SOURCE_CONTINUE;
 
@@ -76,6 +61,7 @@ function handle_scrollMode() {
 	let deltaY = y-scrollCenterY;
     let deltaX = x-scrollCenterX;
     let floatMax = -1;
+
     //Vert Scroll
 	if(Math.abs(deltaY) >= settingsObj.deadzone){
         let xdoDir = deltaY > 0 ? '5' : '4'
@@ -95,7 +81,7 @@ function handle_scrollMode() {
     }
     if(scrollIconActor != null && floatMax > 0){
         let newSz = settingsObj.iconSize * (1+floatMax/9.0);
-        scrollIconActor.set_position(scrollCenterX - (newSz / 2), scrollCenterY - (newSz / 2));
+        scrollIconActor.set_position(scrollCenterX - (newSz / 2.0), scrollCenterY - (newSz / 2.0));
         scrollIconActor.set_icon_size(newSz)
     }
     return GLib.SOURCE_CONTINUE;
@@ -109,7 +95,9 @@ function focusedWindowApp(){
 
 function middle_press(event) {
     scrollInitWin = focusedWindowApp()
-    if(settingsObj.disabledList.includes(scrollInitWin)) return;
+    for(let disabledIdx=0; disabledIdx < settingsObj.disabledList.length; disabledIdx++){
+        if(settingsObj.disabledList[disabledIdx].app === scrollInitWin) return;
+    }
 	let [x, y, _] = global.get_pointer();
 	scrollCenterX = x;
 	scrollCenterY = y;
@@ -131,13 +119,13 @@ function middle_release(event){
 	scrollMode = false;
     Main.uiGroup.remove_child(scrollIconActor);
     scrollIconActor = null;
+    global.log(settingsObj)
 }
 
 /**
  * called when extension gets disabled
  */
 function disable() {
-	global.log("Disabling extension")
 	listener.deregister("mouse:button:2p")
 	listener.deregister("mouse:button:2r")
 	GLib.source_remove(scrollModeTick);

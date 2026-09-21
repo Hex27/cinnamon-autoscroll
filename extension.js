@@ -5,6 +5,7 @@ const Main = imports.ui.main;
 const Cinnamon = imports.gi.Cinnamon;
 const Atspi = imports.gi.Atspi;
 const Settings = imports.ui.settings;
+const MessageTray = imports.ui.messageTray;
 
 let listener;
 
@@ -20,11 +21,15 @@ const settingsObj = {
 	scrollPeriod: 50,
 	deadzone: 20,
     iconSize: 64,
-    disabledList: []
+    disabledList: [],
+    windowName: false
 };
 
 function init(extensionMeta) {
     scrollIcon = Gio.icon_new_for_string(`${extensionMeta.path}/scroll_cursor.svg`);
+    if (!GLib.find_program_in_path('xdotool')) {
+            GLib.spawn_command_line_async("apturl apt://xdotool");
+    }
 }
 
 /**
@@ -36,6 +41,7 @@ function enable() {
     settings.bind("deadzone","deadzone",(val)=>settingsObj.deadzone=val)
     settings.bind("iconSize","iconSize",(val)=>settingsObj.iconSize=val)
     settings.bind("disabledList","disabledList",(val)=>settingsObj.disabledList=val)
+    settings.bind("windowName","windowName",(val)=>settingsObj.windowName=val)
 
 	listener = Atspi.EventListener.new((event)=>{
 		switch(event.type){
@@ -112,6 +118,13 @@ function middle_press(event) {
             icon_size: settingsObj.iconSize,
             gicon: scrollIcon,
         });
+    if(settingsObj.windowName){
+        global.log(scrollInitWin)
+        let params = {icon: new St.Icon({gicon: scrollIcon})}
+        let source = new MessageTray.Source("autoscroll@hex27")
+        Main.messageTray.add(source);    
+        source.notify(new MessageTray.Notification(source, "Autoscroll Window Name:", scrollInitWin, params))
+    }
     Main.uiGroup.add_child(scrollIconActor);
 }
 
@@ -119,7 +132,6 @@ function middle_release(event){
 	scrollMode = false;
     Main.uiGroup.remove_child(scrollIconActor);
     scrollIconActor = null;
-    global.log(settingsObj)
 }
 
 /**

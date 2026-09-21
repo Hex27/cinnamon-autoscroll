@@ -10,7 +10,7 @@
         "settings-section":{
             "type":"section",
             "title":"section",
-            "keys":["scrollPeriod","deadzone","iconSize","disabledList"]
+            "keys":["scrollPeriod","deadzone","iconSize","windowName","disabledList"]
         }
     },
     "scrollPeriod":{
@@ -45,5 +45,10 @@
         "columns":[{"id":"app","title":"Disabled App Names","type":"string"}],
         "default":[],
         "description":"List of programs where the extension is disabled." 
+    },
+    "windowName":{
+        "type":"switch",
+        "default":false,
+        "description":"When middle clicking, get a notification with the focused app's name." 
     }
 }

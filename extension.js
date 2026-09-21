@@ -37,7 +37,7 @@ function debug_beep(){
  */
 function init(extensionMeta) {
   //extensionMeta holds your metadata.json info
-    scrollIcon = Gio.icon_new_for_string(`${extensionMeta.path}/scroll_cursor_vect.png`);
+    scrollIcon = Gio.icon_new_for_string(`${extensionMeta.path}/scroll_cursor.svg`);
 }
 
 /**
@@ -74,11 +74,30 @@ function handle_scrollMode() {
 	let [x, y, _] = global.get_pointer();
 	
 	let deltaY = y-scrollCenterY;
-	if(Math.abs(deltaY) < settingsObj.deadzone) return GLib.SOURCE_CONTINUE;
-    let xdoDir = deltaY > 0 ? '5' : '4'
-    let repeats = Math.max(1,Math.min(9,Math.floor(Math.abs(deltaY / settingsObj.scrollPeriod))))
-	GLib.spawn_command_line_async('xdotool click --delay=10 --repeat ' + repeats.toString() + ' ' + xdoDir)
+    let deltaX = x-scrollCenterX;
+    let floatMax = -1;
+    //Vert Scroll
+	if(Math.abs(deltaY) >= settingsObj.deadzone){
+        let xdoDir = deltaY > 0 ? '5' : '4'
+        let repeatsFloat = Math.max(1,Math.min(9,Math.abs(deltaY / settingsObj.scrollPeriod)))
+        if(repeatsFloat > floatMax) floatMax = repeatsFloat;
+        let repeats = Math.floor(repeatsFloat)
+	    GLib.spawn_command_line_async('xdotool click --delay=10 --repeat ' + repeats.toString() + ' ' + xdoDir)
+    }
 
+    //Hor Scroll
+	if(Math.abs(deltaX) >= settingsObj.deadzone){
+        let xdoDir = deltaX > 0 ? '7' : '6'
+        let repeatsFloat = Math.max(1,Math.min(9,Math.abs(deltaX / settingsObj.scrollPeriod)))
+        if(repeatsFloat > floatMax) floatMax = repeatsFloat;
+        let repeats = Math.floor(repeatsFloat)
+	    GLib.spawn_command_line_async('xdotool click --delay=10 --repeat ' + repeats.toString() + ' ' + xdoDir)
+    }
+    if(scrollIconActor != null && floatMax > 0){
+        let newSz = settingsObj.iconSize * (1+floatMax/9.0);
+        scrollIconActor.set_position(scrollCenterX - (newSz / 2), scrollCenterY - (newSz / 2));
+        scrollIconActor.set_icon_size(newSz)
+    }
     return GLib.SOURCE_CONTINUE;
 }
 

@@ -1,6 +1,6 @@
 # Autoscroll for Cinnamon
 
-This cinnamon spice extension uses xdotool to re-implementing middle-click hold autoscrolling (universal scrolling) in Linux Mint.
+This cinnamon spice extension uses xdotool to re-implement middle-click hold autoscrolling (universal scrolling) in Linux Mint.
 
 # Installation
 

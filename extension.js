@@ -1,7 +1,10 @@
 const GLib = imports.gi.GLib;
 const Gdk = imports.gi.Gdk;
+const Gio = imports.gi.Gio;
 const Gtk = imports.gi.Gtk;
 const St = imports.gi.St;
+const Main = imports.ui.main;
+const Cinnamon = imports.gi.Cinnamon;
 const GObject = imports.gi.GObject;
 const Atspi = imports.gi.Atspi;
 const Clutter = imports.gi.Clutter;
@@ -10,12 +13,19 @@ let stage_handler_id;
 let stage = new Clutter.Stage();
 let listener;
 
+let scrollInitWin;
+let scrollModeTick;
 let scrollMode = false;
 let scrollCenterX = 0;
 let scrollCenterY = 0;
+let scrollIcon;
+let scrollIconActor = null;
+
 const settingsObj = {
-	scrollPeriod: 20,
+	scrollPeriod: 50,
 	deadzone: 20,
+    iconSize: 64,
+    disabledList: ["Godot","Krita"]
 };
 
 function debug_beep(){
@@ -27,7 +37,7 @@ function debug_beep(){
  */
 function init(extensionMeta) {
   //extensionMeta holds your metadata.json info
-
+    scrollIcon = Gio.icon_new_for_string(`${extensionMeta.path}/scroll_cursor_vect.png`);
 }
 
 /**
@@ -45,15 +55,12 @@ function enable() {
 			case "mouse:button:2r":
 				middle_release(event);
 				break;
-			case "mouse:abs":
-				handle_scrollMode(event);
-				break;
 		}
 	});
+    scrollModeTick = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, handle_scrollMode);
 	
 	listener.register("mouse:button:2p");
 	listener.register("mouse:button:2r");
-	listener.register("mouse:abs");	
 }	
 
 function dumpObj(o)
@@ -61,60 +68,50 @@ function dumpObj(o)
     global.log(o)
     global.log(Object.keys(o))
 }
-function handle_scrollMode(event) {
-	
-	if(!scrollMode) return;
-    let display = Gdk.Display.get_default();
-    dumpObj(display)
-    let windows = Gdk.Screen.get_default().get_window_stack();    
-    let window = windows[windows.length-1] 
-    //let [window,winx,winy] = display.get_window_at_pointer();
-        global.log("WINDOWS")  
-    for(let wid in windows){      
-        global.log(wid,windows[wid])
-    }
-        global.log("E-WINDOWS")  
+function handle_scrollMode() {
+	if(!scrollMode) return GLib.SOURCE_CONTINUE;
+
 	let [x, y, _] = global.get_pointer();
 	
 	let deltaY = y-scrollCenterY;
-	if(Math.abs(deltaY) < settingsObj.deadzone) return;
+	if(Math.abs(deltaY) < settingsObj.deadzone) return GLib.SOURCE_CONTINUE;
+    let xdoDir = deltaY > 0 ? '5' : '4'
+    let repeats = Math.max(1,Math.min(9,Math.floor(Math.abs(deltaY / settingsObj.scrollPeriod))))
+	GLib.spawn_command_line_async('xdotool click --delay=10 --repeat ' + repeats.toString() + ' ' + xdoDir)
 
-    window.scroll(0,deltaY)
-    /*
-	// 1. Create a raw Scroll Event
-    let scrollEvent = Gdk.Event.new(Gdk.EventType.SCROLL);
+    return GLib.SOURCE_CONTINUE;
+}
 
-    // 3. Populate mandatory event fields
-    //scrollEvent.window = window;
-    scrollEvent.direction = deltaY > 0 ? Gdk.ScrollDirection.DOWN : Gdk.ScrollDirection.UP;
-    //scrollEvent.send_event = 1; // Mark as explicitly synthesized/sent
-    //scrollEvent.time = Gtk.get_current_event_time();
-    // 4. Set relative pointer coordinates (use center of the window if unknown)
-    //scrollEvent.x = scrollCenterX;
-    //scrollEvent.y = scrollCenterY;
-
-    // 5. Get absolute root coordinates matching your screen space
-    //let [discard, rootX, rootY] = scrollEvent.get_root_coords();
-    //scrollEvent.x_root = rootX + scrollEvent.x;
-    //scrollEvent.y_root = rootY + scrollEvent.y;
-    global.log(window.get_user_data())
-    // 6. Push the event into GTK's main loop event queue
-    //global.log(deltaY)
-    //display.put_event(scrollEvent);
-    scrollEvent.put()
-*/
+function focusedWindowApp(){
+    const windowTracker = Cinnamon.WindowTracker.get_default();
+    const name = windowTracker.get_window_app(global.display.focus_window).get_name();
+    return name;
 }
 
 function middle_press(event) {
-	global.log("Press");
-	scrollCenterX = event.detail1;
-	scrollCenterY = event.detail2;
+    scrollInitWin = focusedWindowApp()
+    if(settingsObj.disabledList.includes(scrollInitWin)) return;
+	let [x, y, _] = global.get_pointer();
+	scrollCenterX = x;
+	scrollCenterY = y;
 	scrollMode = true;
+
+    scrollIconActor = new St.Icon({
+            x: scrollCenterX - (settingsObj.iconSize / 2),
+            y: scrollCenterY - (settingsObj.iconSize / 2),
+            reactive: false,
+            can_focus: false,
+            track_hover: false,
+            icon_size: settingsObj.iconSize,
+            gicon: scrollIcon,
+        });
+    Main.uiGroup.add_child(scrollIconActor);
 }
 
 function middle_release(event){
-	global.log("Release")
 	scrollMode = false;
+    Main.uiGroup.remove_child(scrollIconActor);
+    scrollIconActor = null;
 }
 
 /**
@@ -124,6 +121,8 @@ function disable() {
 	global.log("Disabling extension")
 	listener.deregister("mouse:button:2p")
 	listener.deregister("mouse:button:2r")
-	listener.deregister("mouse:abs")
+	GLib.source_remove(scrollModeTick);
+    if(scrollIconActor != null)
+        Main.uiGroup.remove_child(scrollIconActor);
 	
 }
